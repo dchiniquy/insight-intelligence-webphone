@@ -30,7 +30,7 @@
 
 ### **Twilio Integration**
 - **Status:** ✅ **CONFIGURED AND READY**
-- **Account SID:** `ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` (configured)
+- **Account SID:** Configured from terraform.tfvars
 - **Numbers Configured:**
   - **Don:** +6029609874 (Personal)
   - **Demie:** +6026000707 (Personal) 
