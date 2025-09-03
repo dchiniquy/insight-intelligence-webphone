@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # Database services
+  mongodb:
+    image: mongo:7-jammy
+    container_name: webphone-mongodb-dev
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: webphone
+      MONGO_INITDB_ROOT_PASSWORD: dev-password-123
+      MONGO_INITDB_DATABASE: webphone-app
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_configdb:/data/configdb
+      - ./backend/init-db:/docker-entrypoint-initdb.d:ro
+    networks:
+      - webphone-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: webphone-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass dev-redis-123
+    volumes:
+      - redis_data:/data
+    networks:
+      - webphone-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: webphone-backend-dev
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - MONGODB_URI=mongodb://webphone:dev-password-123@mongodb:27017/webphone-app?authSource=admin
+      - REDIS_URL=redis://:dev-redis-123@redis:6379
+      - SESSION_SECRET=dev-session-secret-key
+      - JWT_SECRET=dev-jwt-secret-key
+      # Twilio configuration (from .env)
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_NUMBERS_CONFIG={"don":{"number":"${TWILIO_DON_NUMBER:-+15551234567}","type":"personal"},"demie":{"number":"${TWILIO_DEMIE_NUMBER:-+15551234568}","type":"personal"},"business":{"number":"${TWILIO_BUSINESS_NUMBER:-+15551234569}","type":"business"}}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - webphone-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Simple nginx proxy (no frontend build required)
+  nginx:
+    image: nginx:alpine
+    container_name: webphone-nginx-dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/dev-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - webphone-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  webphone-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  mongodb_data:
+  mongodb_configdb:
+  redis_data:
