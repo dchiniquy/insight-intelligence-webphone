@@ -120,3 +120,4 @@ mongodb-data/
 
 # Application uploads
 uploads/
+.env.prod

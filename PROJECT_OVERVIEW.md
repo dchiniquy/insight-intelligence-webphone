@@ -55,7 +55,7 @@ Each number has separate webhook endpoints and can have different configurations
   - `insight-intelligence-webphone/nginx`
 
 ### Authentication
-- **Docker Login**: `docker login us-phoenix-1.ocir.io -u 'axoxnwhj7c1a/drchiniquy@gmail.com' -p 'qN05-6Z:pvP)4IC2NG0>'`
+- **Docker Login**: `docker login us-phoenix-1.ocir.io -u 'axoxnwhj7c1a/drchiniquy@gmail.com' -p '<auth-token>'`
 - **Dynamic Group**: `insight-intelligence-webphone-instances`
 - **IAM Policy**: Allows instances to pull from OCIR
 
@@ -138,7 +138,7 @@ Each number has separate webhook endpoints and can have different configurations
 ### Deployment Commands
 ```bash
 # Login to OCIR
-docker login us-phoenix-1.ocir.io -u 'axoxnwhj7c1a/drchiniquy@gmail.com' -p 'qN05-6Z:pvP)4IC2NG0>'
+docker login us-phoenix-1.ocir.io -u 'axoxnwhj7c1a/drchiniquy@gmail.com' -p '<auth-token>'
 
 # Build and tag images
 docker build -t us-phoenix-1.ocir.io/axoxnwhj7c1a/insight-intelligence-webphone/backend:latest ./backend

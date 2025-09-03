@@ -30,7 +30,7 @@
 
 ### **Twilio Integration**
 - **Status:** ✅ **CONFIGURED AND READY**
-- **Account SID:** `AC683ae37dd0cc6a294c669e119a044d58`
+- **Account SID:** `AC***************************` (configured)
 - **Numbers Configured:**
   - **Don:** +6029609874 (Personal)
   - **Demie:** +6026000707 (Personal) 
