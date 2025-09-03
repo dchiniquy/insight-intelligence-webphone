@@ -36,6 +36,10 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Production environment files (contain secrets)
+.env.prod
+.env.production
+
 # Node.js
 node_modules/
 npm-debug.log*

@@ -1,0 +1,139 @@
+#cloud-config
+# Cloud-init configuration for WebPhone application server
+
+# Install Docker and required packages
+packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-compose-plugin
+
+# Add docker repository
+yum_repos:
+  docker-ce:
+    name: Docker CE Stable - $basearch
+    baseurl: https://download.docker.com/linux/centos/8/$basearch/stable
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://download.docker.com/linux/centos/gpg
+
+# System configuration
+runcmd:
+  # Update system
+  - yum update -y
+  
+  # Install Docker
+  - yum install -y yum-utils
+  - yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  - yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  
+  # Start Docker service
+  - systemctl start docker
+  - systemctl enable docker
+  
+  # Add opc user to docker group
+  - usermod -aG docker opc
+  
+  # Install Docker Compose (standalone)
+  - curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - chmod +x /usr/local/bin/docker-compose
+  - ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+  
+  # Create application directory
+  - mkdir -p /opt/webphone
+  - chown opc:opc /opt/webphone
+  
+  # Write docker-compose file
+  - echo '${docker_compose_content}' | base64 -d > /opt/webphone/docker-compose.yml
+  
+  # Create nginx configuration directory
+  - mkdir -p /opt/webphone/nginx
+  - chown opc:opc /opt/webphone/nginx
+  
+  # Create basic nginx config for load balancer health check
+  - |
+    cat > /opt/webphone/nginx/default.conf << 'EOF'
+    server {
+        listen 80;
+        server_name _;
+        
+        # Health check endpoint
+        location /health {
+            return 200 'OK';
+            add_header Content-Type text/plain;
+        }
+        
+        # Frontend
+        location / {
+            proxy_pass http://frontend:3002;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+        }
+        
+        # Backend API
+        location /api/ {
+            proxy_pass http://backend:3001;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+        }
+        
+        # WebSocket endpoint
+        location /socket.io/ {
+            proxy_pass http://backend:3001;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    EOF
+  
+  # Change to app directory and start services
+  - cd /opt/webphone
+  
+  # Login to OCIR (will use instance principal authentication)
+  - echo 'Logging into OCIR...'
+  
+  # Start the application
+  - docker-compose up -d
+  
+  # Set up log rotation
+  - |
+    cat > /etc/logrotate.d/docker-webphone << 'EOF'
+    /opt/webphone/logs/*.log {
+        daily
+        missingok
+        rotate 14
+        compress
+        notifempty
+        create 0644 opc opc
+        postrotate
+            /usr/bin/docker-compose -f /opt/webphone/docker-compose.yml restart nginx || true
+        endscript
+    }
+    EOF
+
+# Create log directory
+write_files:
+  - path: /opt/webphone/logs/.gitkeep
+    content: ""
+    owner: opc:opc
+    permissions: '0644'
+
+# Final message
+final_message: "WebPhone application server setup complete. Services should be starting up."

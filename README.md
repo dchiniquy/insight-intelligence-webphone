@@ -320,24 +320,45 @@ terraform output
 docker login us-phoenix-1.ocir.io -u 'namespace/username' -p 'auth-token'
 
 # Build and tag images
-docker build -t us-phoenix-1.ocir.io/namespace/webphone/backend:latest ./backend
-docker build -t us-phoenix-1.ocir.io/namespace/webphone/frontend:latest ./frontend
-docker build -t us-phoenix-1.ocir.io/namespace/webphone/nginx:latest ./nginx
+docker build -t us-phoenix-1.ocir.io/namespace/insight-intelligence-webphone/backend:latest ./backend
+docker build -t us-phoenix-1.ocir.io/namespace/insight-intelligence-webphone/frontend:latest ./frontend
+docker build -t us-phoenix-1.ocir.io/namespace/insight-intelligence-webphone/nginx:latest ./nginx
 
 # Push images
-docker push us-phoenix-1.ocir.io/namespace/webphone/backend:latest
-docker push us-phoenix-1.ocir.io/namespace/webphone/frontend:latest
-docker push us-phoenix-1.ocir.io/namespace/webphone/nginx:latest
+docker push us-phoenix-1.ocir.io/namespace/insight-intelligence-webphone/backend:latest
+docker push us-phoenix-1.ocir.io/namespace/insight-intelligence-webphone/frontend:latest
+docker push us-phoenix-1.ocir.io/namespace/insight-intelligence-webphone/nginx:latest
 ```
 
-### Deploy to Servers
+### Automated Deployment
+
+Use the provided deployment script for one-command deployment:
+
+```bash
+# Ensure you have .env.prod configured with production values
+cp .env.prod.example .env.prod
+# Edit .env.prod with actual values
+
+# Login to OCIR first
+docker login us-phoenix-1.ocir.io -u 'axoxnwhj7c1a/drchiniquy@gmail.com' -p 'your-auth-token'
+
+# Deploy everything
+./deploy.sh
+```
+
+### Manual Deployment
 
 ```bash
 # SSH to app server
 ssh opc@137.131.4.94
 
-# Update application
-sudo /usr/local/bin/update-webphone
+# Navigate to app directory
+cd /opt/webphone-app
+
+# Stop services, pull latest images, and restart
+docker compose down
+docker compose pull
+docker compose up -d
 ```
 
 ## ⚡ Troubleshooting

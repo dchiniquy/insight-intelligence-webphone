@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: ${registry_region}.ocir.io/${namespace}/insight-intelligence-webphone/nginx:${nginx_image_tag}
+    container_name: webphone-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+  backend:
+    image: ${registry_region}.ocir.io/${namespace}/insight-intelligence-webphone/backend:${backend_image_tag}
+    container_name: webphone-backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongodb:27017/webphone
+      - JWT_SECRET=your-super-secure-jwt-secret-change-this-in-production
+      - TWILIO_ACCOUNT_SID=${twilio_account_sid}
+      - TWILIO_AUTH_TOKEN=${twilio_auth_token}
+      - TWILIO_NUMBERS_CONFIG=${twilio_numbers_config}
+      - FRONTEND_URL=http://localhost
+      - BACKEND_URL=http://localhost
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+  frontend:
+    image: ${registry_region}.ocir.io/${namespace}/insight-intelligence-webphone/frontend:${frontend_image_tag}
+    container_name: webphone-frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost/api
+      - REACT_APP_WS_URL=ws://localhost
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+  mongodb:
+    image: mongo:6-focal
+    container_name: webphone-mongodb
+    environment:
+      - MONGO_INITDB_DATABASE=webphone
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: webphone-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  webphone-network:
+    driver: bridge

@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: ${REGISTRY_URL}/${NAMESPACE}/insight-intelligence-webphone/nginx:${IMAGE_TAG:-latest}
+    container_name: webphone-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+  backend:
+    image: ${REGISTRY_URL}/${NAMESPACE}/insight-intelligence-webphone/backend:${IMAGE_TAG:-latest}
+    container_name: webphone-backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongodb:27017/webphone
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secure-jwt-secret-change-this-in-production-2024}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_NUMBERS_CONFIG=${TWILIO_NUMBERS_CONFIG}
+      - FRONTEND_URL=${PUBLIC_URL:-http://localhost}
+      - BACKEND_URL=${PUBLIC_URL:-http://localhost}
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+  frontend:
+    image: ${REGISTRY_URL}/${NAMESPACE}/insight-intelligence-webphone/frontend:${IMAGE_TAG:-latest}
+    container_name: webphone-frontend
+    environment:
+      - REACT_APP_API_URL=${PUBLIC_URL:-http://localhost}/api
+      - REACT_APP_WS_URL=ws://${PUBLIC_IP:-localhost}
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+  mongodb:
+    image: mongo:6-focal
+    container_name: webphone-mongodb
+    environment:
+      - MONGO_INITDB_DATABASE=webphone
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: webphone-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - webphone-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  webphone-network:
+    driver: bridge
