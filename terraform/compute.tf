@@ -18,9 +18,9 @@ resource "oci_core_instance" "app_server" {
   }
   
   create_vnic_details {
-    subnet_id        = oci_core_subnet.public_subnet.id
+    subnet_id        = oci_core_subnet.private_subnet.id
     display_name     = "app-primary-vnic"
-    assign_public_ip = true
+    assign_public_ip = false  # Private subnet, no public IP
     hostname_label   = "webphone-app"
   }
   
@@ -60,7 +60,7 @@ resource "oci_core_instance" "db_server" {
   
   source_details {
     source_type = "image"
-    source_id   = data.oci_core_images.oracle_linux_arm.images[0].id
+    source_id   = "ocid1.image.oc1.phx.aaaaaaaa2v4dnyc7cymsycu4awjlpt7tegv32ikpzinlpukisbsotjrekqea"
   }
   
   create_vnic_details {

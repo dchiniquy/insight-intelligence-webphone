@@ -44,108 +44,20 @@ data "oci_core_images" "oracle_linux_arm" {
   sort_order               = "DESC"
 }
 
-# VCN and Networking
-resource "oci_core_vcn" "webphone_vcn" {
-  compartment_id = var.compartment_ocid
-  display_name   = "webphone-vcn"
-  cidr_blocks    = ["10.0.0.0/16"]
-  dns_label      = "webphone"
+# Using existing networking infrastructure from network.tf
+# - VCN: oci_core_virtual_network.vcn
+# - Internet Gateway: oci_core_internet_gateway.igw  
+# - NAT Gateway: oci_core_nat_gateway.nat
+# - Public Route Table: oci_core_route_table.public_route
+# - Private Route Table: oci_core_route_table.private_route
+# - Public Security List: oci_core_security_list.public_security
+# - Private Security List: oci_core_security_list.private_security
+# - Public Subnet: oci_core_subnet.public_subnet
+# - Private Subnet: oci_core_subnet.private_subnet
 
-  freeform_tags = local.common_tags
-}
-
-resource "oci_core_internet_gateway" "webphone_igw" {
-  compartment_id = var.compartment_ocid
-  display_name   = "webphone-igw"
-  vcn_id         = oci_core_vcn.webphone_vcn.id
-  enabled        = true
-
-  freeform_tags = local.common_tags
-}
-
-resource "oci_core_route_table" "webphone_rt" {
-  compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.webphone_vcn.id
-  display_name   = "webphone-rt"
-
-  route_rules {
-    destination       = "0.0.0.0/0"
-    network_entity_id = oci_core_internet_gateway.webphone_igw.id
-  }
-
-  freeform_tags = local.common_tags
-}
-
-resource "oci_core_security_list" "webphone_security_list" {
-  compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.webphone_vcn.id
-  display_name   = "webphone-security-list"
-
-  # Allow outbound internet access
-  egress_security_rules {
-    destination = "0.0.0.0/0"
-    protocol    = "all"
-  }
-
-  # Allow SSH access
-  ingress_security_rules {
-    protocol = "6"
-    source   = "0.0.0.0/0"
-
-    tcp_options {
-      min = 22
-      max = 22
-    }
-  }
-
-  # Allow HTTP access
-  ingress_security_rules {
-    protocol = "6"
-    source   = "0.0.0.0/0"
-
-    tcp_options {
-      min = 80
-      max = 80
-    }
-  }
-
-  # Allow HTTPS access
-  ingress_security_rules {
-    protocol = "6"
-    source   = "0.0.0.0/0"
-
-    tcp_options {
-      min = 443
-      max = 443
-    }
-  }
-
-  # Allow backend API access
-  ingress_security_rules {
-    protocol = "6"
-    source   = "0.0.0.0/0"
-
-    tcp_options {
-      min = 3001
-      max = 3001
-    }
-  }
-
-  freeform_tags = local.common_tags
-}
-
-resource "oci_core_subnet" "webphone_subnet" {
-  compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.webphone_vcn.id
-  display_name   = "webphone-subnet"
-  cidr_block     = "10.0.1.0/24"
-  dns_label      = "webphonesubnet"
-
-  route_table_id    = oci_core_route_table.webphone_rt.id
-  security_list_ids = [oci_core_security_list.webphone_security_list.id]
-
-  freeform_tags = local.common_tags
-}
+# Using existing subnets from network.tf
+# Public subnet: oci_core_subnet.public_subnet 
+# Private subnet: oci_core_subnet.private_subnet
 
 # Container Registry Repository
 resource "oci_artifacts_container_repository" "webphone_backend_repo" {
@@ -166,61 +78,19 @@ resource "oci_artifacts_container_repository" "webphone_frontend_repo" {
   freeform_tags = local.common_tags
 }
 
-# Compute Instance for running containers
-resource "oci_core_instance" "webphone_instance" {
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  compartment_id      = var.compartment_ocid
-  display_name        = "webphone-instance"
-  shape               = "VM.Standard.A1.Flex"
 
-  shape_config {
-    ocpus         = 2
-    memory_in_gbs = 12
-  }
-
-  create_vnic_details {
-    subnet_id                 = oci_core_subnet.webphone_subnet.id
-    display_name              = "webphone-vnic"
-    assign_public_ip          = true
-    assign_private_dns_record = true
-    hostname_label            = "webphone"
-  }
-
-  source_details {
-    source_type = "image"
-    source_id   = data.oci_core_images.oracle_linux_arm.images[0].id
-    boot_volume_size_in_gbs = 50
-  }
-
-  metadata = {
-    ssh_authorized_keys = file(var.ssh_public_key_path)
-    user_data = base64encode(templatefile("${path.module}/cloud-init.yml", {
-      docker_compose_content = base64encode(templatefile("${path.module}/docker-compose.prod.yml", {
-        registry_region     = var.region
-        namespace          = data.oci_objectstorage_namespace.ns.namespace
-        backend_image_tag  = "latest"
-        frontend_image_tag = "latest"
-        nginx_image_tag    = "latest"
-        twilio_account_sid = var.twilio_numbers["don"].account_sid
-        twilio_auth_token  = var.twilio_numbers["don"].auth_token
-        twilio_numbers_config = jsonencode({
-          for k, v in var.twilio_numbers : k => {
-            number = v.phone_number
-            label  = v.friendly_name
-          }
-        })
-      }))
-    }))
-  }
-
-  freeform_tags = local.common_tags
-}
+# OCI Certificate Service approach requires manual steps in console
+# For now, using provided SSL certificate variables for immediate SSL setup
+# To use OCI Certificate Service:
+# 1. Create certificate manually in OCI Console
+# 2. Complete domain validation
+# 3. Reference the certificate ID here
 
 # Load Balancer
 resource "oci_load_balancer" "webphone_lb" {
   shape          = "flexible"
   compartment_id = var.compartment_ocid
-  subnet_ids     = [oci_core_subnet.webphone_subnet.id]
+  subnet_ids     = [oci_core_subnet.public_subnet.id, oci_core_subnet.public_subnet_ad2.id]
   display_name   = "webphone-lb"
 
   shape_details {
@@ -244,23 +114,46 @@ resource "oci_load_balancer_backend_set" "webphone_backend_set" {
   }
 }
 
-resource "oci_load_balancer_backend" "webphone_backend" {
-  load_balancer_id = oci_load_balancer.webphone_lb.id
-  backendset_name  = oci_load_balancer_backend_set.webphone_backend_set.name
-  ip_address       = oci_core_instance.webphone_instance.private_ip
-  port             = 80
-  backup           = false
-  drain            = false
-  offline          = false
-  weight           = 1
-}
+# Backend is already configured in the backend_set resource above
 
-resource "oci_load_balancer_listener" "webphone_listener" {
+# HTTP Listener 
+resource "oci_load_balancer_listener" "webphone_http_listener" {
   load_balancer_id         = oci_load_balancer.webphone_lb.id
-  name                     = "webphone-listener"
+  name                     = "webphone-http-listener"
   default_backend_set_name = oci_load_balancer_backend_set.webphone_backend_set.name
   port                     = 80
   protocol                 = "HTTP"
+}
+
+# Load Balancer Certificate (using provided SSL variables or uploaded manually)
+resource "oci_load_balancer_certificate" "webphone_lb_cert" {
+  count            = var.domain_name != "" && var.ssl_certificate != "" ? 1 : 0
+  load_balancer_id = oci_load_balancer.webphone_lb.id
+  certificate_name = "webphone-ssl-cert"
+  
+  lifecycle {
+    create_before_destroy = true
+  }
+  
+  # Use provided SSL certificate variables (can be updated after manual certificate creation)
+  ca_certificate     = var.ssl_ca_certificate
+  private_key        = var.ssl_private_key
+  public_certificate = var.ssl_certificate
+}
+
+# HTTPS Listener with SSL (conditional - only if SSL certificate is provided)
+resource "oci_load_balancer_listener" "webphone_https_listener" {
+  count                    = var.domain_name != "" && var.ssl_certificate != "" ? 1 : 0
+  load_balancer_id         = oci_load_balancer.webphone_lb.id
+  name                     = "webphone-https-listener"
+  default_backend_set_name = oci_load_balancer_backend_set.webphone_backend_set.name
+  port                     = 443
+  protocol                 = "HTTP"
+  
+  ssl_configuration {
+    certificate_name        = oci_load_balancer_certificate.webphone_lb_cert[0].certificate_name
+    verify_peer_certificate = false
+  }
 }
 
 # Outputs
@@ -276,10 +169,13 @@ output "frontend_repository_url" {
   value = "${var.region}.ocir.io/${data.oci_objectstorage_namespace.ns.namespace}/${oci_artifacts_container_repository.webphone_frontend_repo.display_name}"
 }
 
-output "instance_public_ip" {
-  value = oci_core_instance.webphone_instance.public_ip
+output "backend_server_details" {
+  value = {
+    private_ip = oci_core_instance.app_server.private_ip
+    # No public IP since it's in private subnet
+  }
 }
 
 output "load_balancer_ip" {
-  value = oci_load_balancer.webphone_lb.ip_addresses[0].ip_address
+  value = oci_load_balancer.webphone_lb.ip_address_details[0].ip_address
 }

@@ -1,0 +1,11 @@
+# AWS Configuration
+aws_region = "us-west-2"
+
+# Domain Configuration
+domain_name = "webphone.insightintelligence.io"
+use_route53 = false  # Set to true if you want AWS to manage your DNS
+
+# Twilio Configuration
+twilio_account_sid   = "your_twilio_account_sid_here"
+twilio_auth_token    = "your_twilio_auth_token_here"
+twilio_phone_numbers = ["+1234567890", "+0987654321"]

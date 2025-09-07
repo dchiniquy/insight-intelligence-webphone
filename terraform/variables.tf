@@ -65,6 +65,27 @@ variable "twilio_numbers" {
   sensitive = true
 }
 
+variable "ssl_certificate" {
+  description = "SSL certificate content (PEM format)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ssl_private_key" {
+  description = "SSL private key content (PEM format)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ssl_ca_certificate" {
+  description = "SSL CA certificate content (PEM format)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 locals {
   common_tags = {
     Project     = "twilio-multi-app"

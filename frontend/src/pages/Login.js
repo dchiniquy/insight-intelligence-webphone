@@ -41,8 +41,8 @@ const Login = () => {
 
   const loginForm = useForm({
     defaultValues: {
-      identifier: 'admin@example.com',
-      password: 'password123',
+      identifier: '',
+      password: '',
     },
   });
 
@@ -291,12 +291,6 @@ const Login = () => {
             </form>
           </TabPanel>
 
-          {/* Development Note */}
-          <Box sx={{ textAlign: 'center', mt: 2 }}>
-            <Typography variant="caption" color="text.secondary">
-              Development: Use admin@example.com / password123
-            </Typography>
-          </Box>
         </Paper>
       </Box>
     </Container>

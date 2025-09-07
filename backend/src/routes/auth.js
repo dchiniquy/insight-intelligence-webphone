@@ -174,6 +174,53 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// Debug endpoint to test JWT verification
+router.get('/debug', async (req, res) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.json({
+        success: false,
+        error: 'No token provided',
+        debug: { hasAuthHeader: !!req.header('Authorization') }
+      });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      res.json({
+        success: true,
+        debug: {
+          tokenLength: token.length,
+          jwtSecret: process.env.JWT_SECRET ? 'present' : 'missing',
+          jwtSecretLength: process.env.JWT_SECRET?.length,
+          decoded: decoded,
+          nodeEnv: process.env.NODE_ENV
+        }
+      });
+    } catch (jwtError) {
+      res.json({
+        success: false,
+        error: 'JWT verification failed',
+        debug: {
+          tokenLength: token.length,
+          jwtSecret: process.env.JWT_SECRET ? 'present' : 'missing',
+          jwtSecretLength: process.env.JWT_SECRET?.length,
+          jwtError: jwtError.message,
+          nodeEnv: process.env.NODE_ENV
+        }
+      });
+    }
+  } catch (error) {
+    res.json({
+      success: false,
+      error: 'Debug endpoint error',
+      debug: { message: error.message }
+    });
+  }
+});
+
 // Logout user (client-side token removal, but we can blacklist tokens in the future)
 router.post('/logout', (req, res) => {
   res.json({

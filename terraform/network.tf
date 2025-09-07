@@ -132,10 +132,36 @@ resource "oci_core_security_list" "private_security" {
     protocol    = "all"
   }
   
+  # SSH (port 22) from public subnet for bastion access
+  ingress_security_rules {
+    protocol = "6"  # TCP
+    source   = "10.0.6.0/24"  # Public subnet CIDR
+    tcp_options {
+      min = 22
+      max = 22
+    }
+  }
+  
+  # HTTP (port 80) from entire VCN (temporary for debugging)
+  ingress_security_rules {
+    protocol = "6"  # TCP
+    source   = "10.0.0.0/16"  # Entire VCN CIDR
+    tcp_options {
+      min = 80
+      max = 80
+    }
+  }
+  
+  # ICMP for ping/troubleshooting
+  ingress_security_rules {
+    protocol = "1"  # ICMP
+    source   = "10.0.6.0/24"  # Public subnet CIDR
+  }
+  
   # MongoDB (port 27017) from public subnet
   ingress_security_rules {
     protocol = "6"  # TCP
-    source   = "10.0.1.0/24"  # Public subnet CIDR
+    source   = "10.0.6.0/24"  # Public subnet CIDR
     tcp_options {
       min = 27017
       max = 27017
@@ -145,7 +171,7 @@ resource "oci_core_security_list" "private_security" {
   # Redis (port 6379) from public subnet
   ingress_security_rules {
     protocol = "6"  # TCP
-    source   = "10.0.1.0/24"  # Public subnet CIDR
+    source   = "10.0.6.0/24"  # Public subnet CIDR
     tcp_options {
       min = 6379
       max = 6379
@@ -155,14 +181,29 @@ resource "oci_core_security_list" "private_security" {
   freeform_tags = local.common_tags
 }
 
-# Public Subnet
+# Public Subnet (AD-1)
 resource "oci_core_subnet" "public_subnet" {
   compartment_id      = var.compartment_ocid
   vcn_id              = oci_core_virtual_network.vcn.id
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  cidr_block          = "10.0.1.0/24"
-  display_name        = "public-subnet"
-  dns_label           = "public"
+  cidr_block          = "10.0.6.0/24"
+  display_name        = "public-subnet-ad1"
+  dns_label           = "publicad1"
+  route_table_id      = oci_core_route_table.public_route.id
+  
+  security_list_ids = [oci_core_security_list.public_security.id]
+  
+  freeform_tags = local.common_tags
+}
+
+# Public Subnet (AD-2)
+resource "oci_core_subnet" "public_subnet_ad2" {
+  compartment_id      = var.compartment_ocid
+  vcn_id              = oci_core_virtual_network.vcn.id
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[1].name
+  cidr_block          = "10.0.5.0/24"
+  display_name        = "public-subnet-ad2"
+  dns_label           = "publicad2"
   route_table_id      = oci_core_route_table.public_route.id
   
   security_list_ids = [oci_core_security_list.public_security.id]
@@ -193,6 +234,10 @@ output "vcn_id" {
 
 output "public_subnet_id" {
   value = oci_core_subnet.public_subnet.id
+}
+
+output "public_subnet_ad2_id" {
+  value = oci_core_subnet.public_subnet_ad2.id
 }
 
 output "private_subnet_id" {

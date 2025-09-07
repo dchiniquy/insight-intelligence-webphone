@@ -102,10 +102,25 @@ async function startServer() {
     // Webhook routes (no auth required)
     app.use('/webhooks', webhookRoutes);
 
-    // 404 handler
-    app.use('*', (req, res) => {
-      res.status(404).json({ error: 'Route not found' });
-    });
+    // Serve frontend static files in production
+    if (process.env.NODE_ENV === 'production') {
+      app.use(express.static('/app/public'));
+      
+      // Handle React Router - send all non-API routes to index.html
+      app.get('*', (req, res) => {
+        // Only serve index.html for non-API routes
+        if (!req.path.startsWith('/api') && !req.path.startsWith('/webhooks')) {
+          res.sendFile('/app/public/index.html');
+        } else {
+          res.status(404).json({ error: 'Route not found' });
+        }
+      });
+    } else {
+      // 404 handler for development
+      app.use('*', (req, res) => {
+        res.status(404).json({ error: 'Route not found' });
+      });
+    }
 
     // Error handling middleware
     app.use(errorHandler);

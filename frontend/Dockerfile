@@ -5,12 +5,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --silent --no-audit --no-fund
+    npm ci --silent --no-audit --no-fund --frozen-lockfile
 
 # Copy source code
 COPY . .
 
-# Build the app
+# Build the app with optimizations
+ENV GENERATE_SOURCEMAP=false
+ENV INLINE_RUNTIME_CHUNK=false
 RUN npm run build
 
 # Production stage
@@ -22,9 +24,9 @@ COPY --from=build /app/build /usr/share/nginx/html
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Add health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget --spider -q http://localhost/health || exit 1
+# Optimized health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=2 \
+  CMD wget --spider -q http://localhost/ || exit 1
 
 EXPOSE 80
 
